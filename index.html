@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VOLT//OS · Energy Floor</title>
+  <style>
+    html, body { margin: 0; background: #07090b; color: #e7eeea; }
+    .brand span { color: #2ee6c7; }
+  </style>
+  <link rel="stylesheet" href="/static/styles.css?v=3" />
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+  <header class="topbar">
+    <div class="brand">VOLT<span>//</span>OS</div>
+    <div class="plant">PS-24 · INTERVAL FLOOR</div>
+    <div class="top-meta">
+      <span id="source-pill">NO TAPE</span>
+      <span id="clock">--:--:--</span>
+      <span id="rec" class="rec"><i></i> REC</span>
+      <span id="link" class="link">LINK</span>
+    </div>
+  </header>
+
+  <main class="floor">
+    <aside class="col left">
+      <section class="panel">
+        <h2>Data</h2>
+        <p id="file-name" class="file-name">interval_readings.csv</p>
+        <p id="map-line" class="hint">Waiting for ingest.</p>
+        <div class="stack">
+          <button id="load-sample" type="button">Load 2-week sample</button>
+          <label class="file-btn">
+            Upload CSV
+            <input id="upload" type="file" accept=".csv,text/csv" />
+          </label>
+        </div>
+        <p id="ingest-error" class="error" hidden></p>
+      </section>
+
+      <section class="panel">
+        <h2>Tariff</h2>
+        <label class="slider">
+          <span>Off-peak <b id="val-off">₹5.50</b></span>
+          <input id="rate-off" type="range" min="1" max="20" step="0.1" value="5.5" />
+        </label>
+        <label class="slider">
+          <span>Shoulder <b id="val-shoulder">₹8.20</b></span>
+          <input id="rate-shoulder" type="range" min="1" max="25" step="0.1" value="8.2" />
+        </label>
+        <label class="slider amber">
+          <span>Peak <b id="val-peak">₹12.40</b></span>
+          <input id="rate-peak" type="range" min="1" max="30" step="0.1" value="12.4" />
+        </label>
+        <label class="slider amber">
+          <span>Demand <b id="val-demand">₹180</b></span>
+          <input id="rate-demand" type="range" min="0" max="800" step="5" value="180" />
+        </label>
+        <p class="hint">Peak 18–22 · Off-peak 22–06 · else shoulder. ₹/kWh, demand ₹/kW.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Anomaly</h2>
+        <label class="slider">
+          <span>Window <b id="val-window">24 h</b></span>
+          <input id="window" type="range" min="4" max="72" step="1" value="24" />
+        </label>
+        <label class="slider hot">
+          <span>Z threshold <b id="val-z">2.50</b></span>
+          <input id="z-threshold" type="range" min="1.5" max="6" step="0.1" value="2.5" />
+        </label>
+        <p class="hint">Residual vs hour-of-week, then rolling z. A standing 20:00 kitchen peak is not an alert.</p>
+      </section>
+
+      <section class="panel actions">
+        <button id="inject" type="button" class="danger">Inject spike</button>
+        <button id="pause" type="button">Pause tape</button>
+        <button id="export" type="button">Export shift costs</button>
+      </section>
+    </aside>
+
+    <section class="col center">
+      <div class="hero">
+        <div class="reticle" aria-hidden="true"></div>
+        <div class="hero-copy">
+          <div class="eyebrow">Live interval power</div>
+          <div class="live-row">
+            <span id="live-kw" class="live-num">0.0</span>
+            <span class="unit">kW</span>
+          </div>
+          <div id="live-ts" class="live-ts">cursor idle</div>
+        </div>
+        <div class="kpis">
+          <article class="kpi">
+            <span>Energy</span>
+            <strong id="kpi-energy">0</strong>
+            <em>kWh on tape</em>
+          </article>
+          <article class="kpi money">
+            <span>Cost</span>
+            <strong id="kpi-cost">0</strong>
+            <em>energy ₹</em>
+          </article>
+          <article class="kpi money">
+            <span>Demand</span>
+            <strong id="kpi-demand">0</strong>
+            <em id="kpi-demand-sub">peak kW</em>
+          </article>
+          <article class="kpi alert">
+            <span>Anomalies</span>
+            <strong id="kpi-alerts">0</strong>
+            <em>over threshold</em>
+          </article>
+        </div>
+      </div>
+
+      <section class="panel chart-panel">
+        <header class="panel-head">
+          <h2>Interval tape</h2>
+          <span id="tape-range" class="hint"></span>
+        </header>
+        <canvas id="tape" width="900" height="220"></canvas>
+      </section>
+
+      <div class="split">
+        <section class="panel chart-panel">
+          <header class="panel-head">
+            <h2>Hour × day</h2>
+            <span class="hint">hover a cell</span>
+          </header>
+          <canvas id="heatmap" width="520" height="250"></canvas>
+        </section>
+        <section class="panel chart-panel">
+          <header class="panel-head">
+            <h2>Next-day cost</h2>
+            <span id="forecast-total" class="hint money-text"></span>
+          </header>
+          <canvas id="forecast" width="420" height="250"></canvas>
+        </section>
+      </div>
+
+      <section class="panel">
+        <header class="panel-head">
+          <h2>Shift × department cost</h2>
+          <span class="hint">₹ · Morning 06–14 · Afternoon 14–22 · Night 22–06</span>
+        </header>
+        <div class="table-wrap">
+          <table id="shift-table">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <header class="panel-head">
+          <h2>Database preview</h2>
+          <span class="hint">latest stored rows</span>
+        </header>
+        <div class="table-wrap">
+          <table id="preview">
+            <thead>
+              <tr><th>timestamp</th><th>department</th><th>kwh</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+
+    <aside class="col right">
+      <section class="panel brief">
+        <h2>Floor brief</h2>
+        <ol id="brief">
+          <li data-step="ingest"><b>Ingest</b><span>—</span></li>
+          <li data-step="map"><b>Map</b><span>—</span></li>
+          <li data-step="tariff"><b>Tariff</b><span>—</span></li>
+          <li data-step="anomaly"><b>Anomaly</b><span>—</span></li>
+          <li data-step="action"><b>Action</b><span>—</span></li>
+        </ol>
+      </section>
+
+      <section class="panel">
+        <header class="panel-head">
+          <h2>Department cost</h2>
+          <span class="hint">share of energy ₹</span>
+        </header>
+        <div id="dept-bars"></div>
+      </section>
+
+      <section class="panel rail-panel">
+        <header class="panel-head">
+          <h2>Alert rail</h2>
+          <span id="rail-count" class="hint">0</span>
+        </header>
+        <div id="alert-rail"></div>
+      </section>
+    </aside>
+  </main>
+
+  <div id="tip" class="tip" hidden></div>
+  <script src="/static/app.js?v=3"></script>
+</body>
+</html>
